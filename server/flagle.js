@@ -200,7 +200,9 @@ export function registerFlagle(io) {
         socket.emit("tiktok-error", { message: "Please enter a valid TikTok username." });
         return;
       }
-      const clean = username.trim().replace(/^@/, "");
+      // TikTok usernames are always lowercase — normalize defensively here
+      // too, in case of copy-pasted text or a future UI change.
+      const clean = username.trim().replace(/^@/, "").toLowerCase();
 
       if (!HAS_SIGN_KEY) {
         socket.emit("tiktok-status", {

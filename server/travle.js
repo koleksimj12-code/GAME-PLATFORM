@@ -63,7 +63,10 @@ export function registerTravle(io) {
       : { connected: false });
 
     socket.on("tiktok-connect", async (usernameRaw) => {
-      const username = String(usernameRaw || "").trim().replace(/^@/, "");
+      // TikTok usernames are always lowercase — normalize here so a stray
+      // capital (e.g. from a mobile keyboard's autocapitalize) can never
+      // cause a "room not found" failure again, regardless of the source.
+      const username = String(usernameRaw || "").trim().replace(/^@/, "").toLowerCase();
       if (!username) {
         socket.emit("tiktok-status", { connected: false, error: "Enter a TikTok username first." });
         return;
