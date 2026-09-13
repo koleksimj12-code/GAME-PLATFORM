@@ -270,6 +270,7 @@
   const globeRecenter = $("globeRecenter");
   const globeExpandBtn = $("globeExpandBtn");
   const globeExitBtn = $("globeExitBtn");
+  const postRoundTimer = $("postRoundTimer");
 
   const tiktokUsername = $("tiktokUsername");
   const tiktokConnectBtn = $("tiktokConnectBtn");
@@ -298,6 +299,7 @@
   function startNewRound() {
     clearTimeout(autoTimer);
     closeModal();
+    postRoundTimer.hidden = true;
     const minH = parseInt(minHopsInput.value, 10) || 2;
     const maxH = parseInt(maxHopsInput.value, 10) || 6;
     const picked = pickRound(minH, maxH);
@@ -787,16 +789,36 @@
     }
 
     openModal();
+    postRoundTimer.hidden = true;
 
     if (autoContinueToggle.checked) {
       const secs = Math.max(3, parseInt(autoContinueDelay.value, 10) || 12);
+      const halfPoint = Math.max(1, Math.ceil(secs / 2));
       let remaining = secs;
+      let revealedOnGlobe = false;
       modalCountdown.textContent = `Next round in ${remaining}s…`;
       clearTimeout(autoTimer);
+
       const tick = () => {
         remaining--;
-        if (remaining <= 0) { startNewRound(); }
-        else { modalCountdown.textContent = `Next round in ${remaining}s…`; autoTimer = setTimeout(tick, 1000); }
+        if (remaining <= 0) {
+          postRoundTimer.hidden = true;
+          startNewRound();
+          return;
+        }
+        // Halfway through the delay: close the answer window and let the
+        // globe itself — now unobstructed — show the true shortest trail,
+        // with just a small countdown left on screen.
+        if (!revealedOnGlobe && remaining <= halfPoint) {
+          revealedOnGlobe = true;
+          closeModal();
+          showOptimalOnGlobe();
+          postRoundTimer.hidden = false;
+        }
+        const text = `Next round in ${remaining}s…`;
+        if (revealedOnGlobe) postRoundTimer.textContent = text;
+        else modalCountdown.textContent = text;
+        autoTimer = setTimeout(tick, 1000);
       };
       autoTimer = setTimeout(tick, 1000);
     } else {
@@ -804,11 +826,11 @@
     }
   }
 
-  function revealRound() {
-    if (!round || !round.active) return;
-    // Light up every country in the true shortest path on the globe itself
-    // (not just the text breakdown in the modal) — this is "the answer,"
-    // fully shown, regardless of how far chat actually got.
+  // Lights up every country in the TRUE shortest path directly on the
+  // globe — shared by the manual Reveal button and the automatic
+  // halfway-through-the-delay reveal after a round ends.
+  function showOptimalOnGlobe() {
+    if (!round) return;
     const canonicalOptimal = shortestPath(round.start, round.end) || [];
     const revealMap = new Map();
     canonicalOptimal.forEach((c) => {
@@ -818,6 +840,14 @@
     if (window.Globe && window.Globe.isReady()) {
       window.Globe.render({ start: round.start, end: round.end, countryState: revealMap, hintedOutline: null });
     }
+  }
+
+  function revealRound() {
+    if (!round || !round.active) return;
+    // Light up every country in the true shortest path on the globe itself
+    // (not just the text breakdown in the modal) — this is "the answer,"
+    // fully shown, regardless of how far chat actually got.
+    showOptimalOnGlobe();
     finishRound(false);
   }
 

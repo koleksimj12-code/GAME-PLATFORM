@@ -261,6 +261,25 @@ button, input, select {
 
 .globe-wrap.expanded ~ .globe-caption { display: none; }
 
+.post-round-timer {
+  margin: 8px auto 0;
+  width: max-content;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--gold);
+  background: var(--panel-2);
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  padding: 5px 14px;
+  text-align: center;
+  animation: post-round-pulse 1.6s ease-in-out infinite;
+}
+@keyframes post-round-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
 .globe-caption {
   margin: 8px 0 0;
   font-size: 10.5px;
