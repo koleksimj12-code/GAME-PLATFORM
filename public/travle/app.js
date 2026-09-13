@@ -162,6 +162,23 @@
     store.total[name] = (store.total[name] || 0) + points;
     saveStore();
     if (leaderboardDrawer.classList.contains("open")) renderLeaderboard();
+  }
+
+  // The news ticker reflects the CURRENT session regardless of mode (Live,
+  // Test, or Offline) — this is deliberately separate from the persisted
+  // store above, which only saves Live-mode points. Without this, the
+  // ticker never appeared at all while testing in Test/Offline mode
+  // (nothing was ever added to `store`, so it had nothing to show), which
+  // looked like the feature was broken rather than just correctly empty.
+  let sessionScores = {};
+  function addSessionPoints(viewerName, points) {
+    if (points <= 0) return;
+    const label = viewerLabel(viewerName);
+    sessionScores[label] = (sessionScores[label] || 0) + points;
+    renderTicker();
+  }
+  function resetSessionScores() {
+    sessionScores = {};
     renderTicker();
   }
 
@@ -169,7 +186,6 @@
     store[bucket] = {};
     saveStore();
     renderLeaderboard();
-    renderTicker();
   }
 
   /* ------------------------------------------------------------------ *
@@ -472,6 +488,23 @@
     return GRAPH.get(sf).has(ef);
   }
 
+  // Briefly rotate the globe to center on whatever country was just
+  // guessed — regardless of whether it scores, connects, or is a repeat —
+  // then smoothly return to showing both trail ends. If another guess
+  // comes in before the 3s hold finishes, its own focus takes over and
+  // this older recenter is skipped, so they never fight each other.
+  let focusGeneration = 0;
+  function focusThenRecenter(country) {
+    if (!window.Globe || !window.Globe.isReady() || !COUNTRY_COORDS[country]) return;
+    const myGen = ++focusGeneration;
+    window.Globe.focusOnCountry(country, 900);
+    setTimeout(() => {
+      if (myGen !== focusGeneration) return; // superseded by a newer guess
+      if (!round) return;
+      window.Globe.centerOn(round.start, round.end, 900);
+    }, 3000);
+  }
+
   // Shared by the manual "Guess" button and the TikTok auto-relay.
   function processGuess(rawGuess, viewerNameRaw, opts) {
     const silent = Boolean(opts && opts.silent);
@@ -490,6 +523,8 @@
       if (!silent) hostMsg.textContent = `"${String(rawGuess).trim()}" isn't a country name I recognize — check spelling.`;
       return;
     }
+
+    focusThenRecenter(country);
 
     if (round.used.has(country)) {
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">already on the board</span>`);
@@ -515,6 +550,7 @@
       const tag = optimal ? "tag-optimal" : "tag-good";
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">bridged the trail! 🎉 (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
+      addSessionPoints(viewerName, pts);
       renderRound();
       finishRound(true);
       return;
@@ -530,6 +566,7 @@
       const note = optimal ? "on the optimal path" : "valid, but not the shortest route";
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">${note}, connects from ${side} ${arrowFor(connectsStart ? "start" : "end")} (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
+      addSessionPoints(viewerName, pts);
       const connected = trySpliceFloating();
       renderRound();
       if (connected) finishRound(true);
@@ -545,6 +582,7 @@
       round.guessesUsed++;
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-optimal">on the optimal path! (+3) — not connected to the trail yet</span>`);
       if (mode === "live") addPoints(viewerName, 3);
+      addSessionPoints(viewerName, 3);
       renderRound();
       return;
     }
@@ -683,6 +721,18 @@
 
   function revealRound() {
     if (!round || !round.active) return;
+    // Light up every country in the true shortest path on the globe itself
+    // (not just the text breakdown in the modal) — this is "the answer,"
+    // fully shown, regardless of how far chat actually got.
+    const canonicalOptimal = shortestPath(round.start, round.end) || [];
+    const revealMap = new Map();
+    canonicalOptimal.forEach((c) => {
+      revealMap.set(c, (c === round.start || c === round.end) ? "endpoint" : "optimal");
+    });
+    round.wrongGuesses.forEach((c) => { if (!revealMap.has(c)) revealMap.set(c, "wrong"); });
+    if (window.Globe && window.Globe.isReady()) {
+      window.Globe.render({ start: round.start, end: round.end, countryState: revealMap, hintedOutline: null });
+    }
     finishRound(false);
   }
 
@@ -717,7 +767,7 @@
 
   function renderTicker() {
     if (!tickerBar) return;
-    const entries = Object.entries(store.travle).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const entries = Object.entries(sessionScores).sort((a, b) => b[1] - a[1]).slice(0, 10);
     if (!entries.length) { tickerBar.hidden = true; tickerTrack.innerHTML = ""; return; }
     tickerBar.hidden = false;
     const itemsHtml = entries.map(([name, score], i) => {
@@ -945,6 +995,7 @@
     mode = modeSelect.value;
     applyModeUI();
     closeDrawer(settingsDrawer);
+    resetSessionScores();
     startNewRound();
     hostMsg.textContent = "Settings applied — new round started.";
   });

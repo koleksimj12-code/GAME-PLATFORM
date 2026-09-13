@@ -381,7 +381,53 @@ window.Globe = (() => {
     }
   }
 
-  function centerOn(nameA, nameB) {
+  let activeAnimTimer = null;
+
+  // Smoothly interpolates rotation + zoom over `durationMs`, cancelling any
+  // in-progress animation first so overlapping calls (e.g. guesses arriving
+  // faster than the focus duration) don't fight each other.
+  function animateTo(targetRotate, targetZoomPct, durationMs, onDone) {
+    if (activeAnimTimer) { activeAnimTimer.stop(); activeAnimTimer = null; }
+    if (!durationMs || durationMs <= 0) {
+      rotate = targetRotate;
+      if (projection) projection.rotate(rotate);
+      setZoomPercent(targetZoomPct);
+      if (onDone) onDone();
+      return;
+    }
+    const startRotate = rotate.slice();
+    const startZoomPct = currentPercent();
+    const interpRotate = d3.interpolate(startRotate, targetRotate);
+    const interpZoom = d3.interpolate(startZoomPct, targetZoomPct);
+    const t0 = performance.now();
+    activeAnimTimer = d3.timer(() => {
+      const t = Math.min(1, (performance.now() - t0) / durationMs);
+      const eased = d3.easeCubicInOut(t);
+      rotate = interpRotate(eased);
+      if (projection) projection.rotate(rotate);
+      currentScale = baseScale * (interpZoom(eased) / 100);
+      if (projection) projection.scale(currentScale);
+      redraw();
+      if (onZoomChange) onZoomChange(Math.round(interpZoom(eased)));
+      if (t >= 1) {
+        activeAnimTimer.stop();
+        activeAnimTimer = null;
+        if (onDone) onDone();
+      }
+    });
+  }
+
+  // Rotates to put a single country dead-center, zoomed in enough to read
+  // it clearly — used for the "briefly focus on the just-guessed country"
+  // effect.
+  function focusOnCountry(name, durationMs = 900, zoomPct = 170) {
+    if (!ready) return;
+    const c = COUNTRY_COORDS && COUNTRY_COORDS[name];
+    if (!c) return;
+    animateTo([-c[1], -c[0], 0], zoomPct, durationMs);
+  }
+
+  function centerOn(nameA, nameB, durationMs = 0) {
     if (!ready) return;
     const a = COUNTRY_COORDS && COUNTRY_COORDS[nameA];
     const b = COUNTRY_COORDS && COUNTRY_COORDS[nameB];
@@ -391,11 +437,9 @@ window.Globe = (() => {
     const sy = Math.sin(a[1] * toRad) + Math.sin(b[1] * toRad);
     const lon = Math.atan2(sy, sx) / toRad;
     const lat = (a[0] + b[0]) / 2;
-    rotate = [-lon, -lat, 0];
-    if (projection) projection.rotate(rotate);
     const dist = d3.geoDistance([a[1], a[0]], [b[1], b[0]]); // radians
     const pct = Math.max(45, Math.min(220, 130 - dist * 45));
-    setZoomPercent(pct);
+    animateTo([-lon, -lat, 0], pct, durationMs);
   }
 
   function render(state) {
@@ -427,6 +471,7 @@ window.Globe = (() => {
     init,
     render,
     centerOn,
+    focusOnCountry,
     resize,
     setZoomPercent,
     currentPercent,
