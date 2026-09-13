@@ -201,6 +201,8 @@
   const optimalLenEl = $("difficultyLabel");
   const routeOptimalEl = $("routeOptimal");
   const routeYoursEl = $("routeYours");
+  const routeOptimalInnerEl = $("routeOptimalInner");
+  const routeYoursInnerEl = $("routeYoursInner");
   const hintDisplay = $("hintDisplay");
   const feedList = $("feedList");
   const feedCard = $("feedCard");
@@ -347,6 +349,29 @@
     hintDisplay.textContent = txt;
   }
 
+  // Shrinks a row's real content (text, padding, gaps — all of it, as one
+  // unit) down to whatever scale makes it fit the visible row width, so
+  // the whole trail is readable at a glance without needing to scroll.
+  // Floors out at MIN_SCALE for pathologically long trails rather than
+  // shrinking text into illegibility — genuinely extreme cases fall back
+  // to being slightly clipped rather than unreadable, which should be
+  // rare given trail lengths in this game are always small.
+  const ROUTE_MIN_SCALE = 0.55;
+  function fitRowToWidth(outerEl, innerEl) {
+    if (!outerEl || !innerEl) return;
+    innerEl.style.transform = "scale(1)";
+    const available = outerEl.clientWidth;
+    const natural = innerEl.scrollWidth;
+    if (!available || !natural) return;
+    const scale = Math.max(ROUTE_MIN_SCALE, Math.min(1, available / natural));
+    innerEl.style.transform = scale < 1 ? `scale(${scale})` : "";
+  }
+
+  function refitRouteLines() {
+    fitRowToWidth(routeOptimalEl, routeOptimalInnerEl);
+    fitRowToWidth(routeYoursEl, routeYoursInnerEl);
+  }
+
   function renderRound() {
     if (!round) return;
     guessesLeftEl.textContent = String(round.guessesUsed);
@@ -354,6 +379,7 @@
 
     renderOptimalTrailLine();
     renderYourTrailLine();
+    refitRouteLines();
 
     updateHintDisplay();
     renderGlobe();
@@ -363,12 +389,12 @@
   // discovery order. Undiscovered slots show as a "+N to find" placeholder
   // rather than the real names, so this never spoils the answer.
   function renderOptimalTrailLine() {
-    if (!routeOptimalEl) return;
-    routeOptimalEl.innerHTML = "";
+    if (!routeOptimalInnerEl) return;
+    routeOptimalInnerEl.innerHTML = "";
     const tag = document.createElement("span");
     tag.className = "route-tag route-tag-optimal";
     tag.textContent = "Shortest";
-    routeOptimalEl.appendChild(tag);
+    routeOptimalInnerEl.appendChild(tag);
 
     const chain = [round.start];
     round.startChain.slice(1).forEach((c) => { if (isOptimal(c)) chain.push(c); });
@@ -384,22 +410,22 @@
       const isEndpoint = node === round.start || node === round.end;
       el.className = "node small " + (isEndpoint ? "endpoint" : "confirmed");
       el.textContent = node;
-      routeOptimalEl.appendChild(el);
+      routeOptimalInnerEl.appendChild(el);
 
       if (i === chain.length - 2 && remaining > 0) {
         // insert the "still to find" placeholder just before the end chip
         const c1 = document.createElement("div");
         c1.className = "connector open";
-        routeOptimalEl.appendChild(c1);
+        routeOptimalInnerEl.appendChild(c1);
         const ghost = document.createElement("div");
         ghost.className = "node small ghost-node";
         ghost.textContent = `+${remaining} to find`;
-        routeOptimalEl.appendChild(ghost);
+        routeOptimalInnerEl.appendChild(ghost);
       }
       if (i < chain.length - 1) {
         const c2 = document.createElement("div");
         c2.className = "connector" + (i === chain.length - 2 && remaining > 0 ? " open" : "");
-        routeOptimalEl.appendChild(c2);
+        routeOptimalInnerEl.appendChild(c2);
       }
     });
   }
@@ -407,19 +433,19 @@
   // Row 2 — the actual trail chat has built so far, exactly as guessed
   // (may include valid-but-longer detours, not just optimal picks).
   function renderYourTrailLine() {
-    if (!routeYoursEl) return;
-    routeYoursEl.innerHTML = "";
+    if (!routeYoursInnerEl) return;
+    routeYoursInnerEl.innerHTML = "";
     const tag = document.createElement("span");
     tag.className = "route-tag route-tag-yours";
     tag.textContent = "Your trail";
-    routeYoursEl.appendChild(tag);
+    routeYoursInnerEl.appendChild(tag);
 
     const fullVisual = [...round.startChain, "…GAP…", ...[...round.endChain].reverse()];
     fullVisual.forEach((node, i) => {
       if (node === "…GAP…") {
         const c = document.createElement("div");
         c.className = "connector open";
-        routeYoursEl.appendChild(c);
+        routeYoursInnerEl.appendChild(c);
         return;
       }
       const el = document.createElement("div");
@@ -427,11 +453,11 @@
       const optimalNode = !isEndpoint && isOptimal(node);
       el.className = "node small " + (isEndpoint ? "endpoint" : optimalNode ? "confirmed" : "good-node");
       el.textContent = node;
-      routeYoursEl.appendChild(el);
+      routeYoursInnerEl.appendChild(el);
       if (i < fullVisual.length - 1 && fullVisual[i + 1] !== "…GAP…") {
         const c = document.createElement("div");
         c.className = "connector";
-        routeYoursEl.appendChild(c);
+        routeYoursInnerEl.appendChild(c);
       }
     });
   }
@@ -879,7 +905,10 @@
   globeExitBtn.addEventListener("click", collapseGlobe);
   scrim.addEventListener("click", () => { collapseGlobe(); closeAllDrawers(); });
 
-  window.addEventListener("resize", () => { if (window.Globe && window.Globe.isReady()) window.Globe.resize(); });
+  window.addEventListener("resize", () => {
+    if (window.Globe && window.Globe.isReady()) window.Globe.resize();
+    if (round) refitRouteLines();
+  });
   window.addEventListener("orientationchange", () => {
     setTimeout(() => { if (window.Globe && window.Globe.isReady()) window.Globe.resize(); }, 300);
   });

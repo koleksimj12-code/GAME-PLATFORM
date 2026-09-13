@@ -300,17 +300,22 @@ button, input, select {
 }
 
 .route {
-  display: flex;
+  display: block;
+  min-height: 22px;
+  padding: 1px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.route-inner {
+  display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
-  min-height: 22px;
-  padding: 1px 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
+  width: max-content;
+  transform-origin: left center;
+  white-space: nowrap;
 }
-.route::-webkit-scrollbar { display: none; }
 
 .route-tag {
   flex: 0 0 auto;
