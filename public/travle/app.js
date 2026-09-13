@@ -426,6 +426,13 @@
     while (feedList.children.length > 60) feedList.removeChild(feedList.lastChild);
   }
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   function arrowFor(side) { return side === "start" ? "→" : "←"; }
 
   function viewerLabel(viewerName) {
@@ -474,11 +481,18 @@
     const country = resolveCountry(rawGuess);
 
     if (!country) {
+      // Not a recognized country name — still show it in the live activity
+      // feed as a plain chat line (so the audience's actual messages are
+      // visible, not just successful guesses), and additionally surface an
+      // inline note next to the host's own input box if this came from
+      // manual entry rather than TikTok auto-relay.
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span>: <span class="chat-text">${escapeHtml(String(rawGuess).trim())}</span>`);
       if (!silent) hostMsg.textContent = `"${String(rawGuess).trim()}" isn't a country name I recognize — check spelling.`;
       return;
     }
 
     if (round.used.has(country)) {
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">already on the board</span>`);
       if (!silent) hostMsg.textContent = `${country} is already on the board.`;
       return;
     }

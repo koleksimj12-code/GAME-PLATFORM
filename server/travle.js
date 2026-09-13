@@ -28,8 +28,24 @@ function extractComment(data) {
 function friendlyError(err, username) {
   const raw = err?.message || String(err);
   const lower = raw.toLowerCase();
-  if (err?.name === "UserOfflineError" || lower.includes("offline") || lower.includes("not found")) {
-    return `TikTok says @${username} is not currently LIVE. Start your TikTok LIVE first, then try connecting again.`;
+  // "Not currently live" shows up in several different wordings depending
+  // on which internal lookup method failed — room id, user id, "not found",
+  // "offline" — so this list is intentionally broad. This is also the
+  // single most common reason a connection attempt fails, so callers can
+  // treat this case as "the system is working correctly, you're just not
+  // broadcasting right now" rather than a real technical problem.
+  if (
+    err?.name === "UserOfflineError" ||
+    lower.includes("offline") ||
+    lower.includes("not found") ||
+    lower.includes("not currently live") ||
+    lower.includes("room id") ||
+    lower.includes("room_id") ||
+    lower.includes("roomid") ||
+    lower.includes("user_not_found") ||
+    lower.includes("failed to retrieve")
+  ) {
+    return `TikTok reports no live room found for @${username} right now — almost always because the account isn't currently broadcasting. That's expected and not a problem with your setup. (If you're certain you WERE live when this happened, it's occasionally a temporary detection hiccup on TikTok's side — try connecting again in a minute.)`;
   }
   if (lower.includes("rate") || lower.includes("429") || lower.includes("too many")) {
     return "Hit a rate limit reading TikTok chat. Wait ~30 seconds and try again — or add a free key from eulerstream.com as TIKTOK_SIGN_API_KEY on Render.";
@@ -40,7 +56,7 @@ function friendlyError(err, username) {
   if (lower.includes("processinitialdata") || lower.includes("cannot read properties of undefined")) {
     return "Hit a known bug in the free demo connection path. Add a free key from eulerstream.com as TIKTOK_SIGN_API_KEY on Render — this switches to the supported path.";
   }
-  return `Could not connect (${err?.name || "error"}: ${raw}). Double-check the username and that you're already LIVE.`;
+  return `Connection attempt failed for a reason other than "not live" (${err?.name || "error"}: ${raw}). This one's worth reporting if it keeps happening while you ARE live.`;
 }
 
 export function registerTravle(io) {

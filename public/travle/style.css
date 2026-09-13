@@ -155,6 +155,7 @@ button, input, select {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  text-decoration: none;
 }
 .icon-btn:active { transform: scale(0.94); }
 
@@ -410,6 +411,7 @@ button, input, select {
 .feed-list .tag-optimal { color: var(--green-opt); font-weight: 600; }
 .feed-list .tag-good { color: var(--yellow-good); font-weight: 600; }
 .feed-list .tag-bad { color: var(--red-wrong); font-weight: 600; }
+.feed-list .chat-text { color: var(--slate); }
 
 /* ---------------- Host dock ---------------- */
 .host-dock {
