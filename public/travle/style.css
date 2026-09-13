@@ -293,14 +293,41 @@ button, input, select {
 .meta-label { font-size: 10px; color: var(--slate); letter-spacing: 0.3px; }
 .meta-value { font-size: 16px; font-weight: 700; color: var(--gold); font-family: var(--font-display); }
 
+.route-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .route {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 2px 0;
+  gap: 4px;
+  min-height: 22px;
+  padding: 1px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+.route::-webkit-scrollbar { display: none; }
+
+.route-tag {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--slate);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 7px;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+.route-tag-optimal { color: var(--green-opt); border-color: var(--green-opt-dim); }
+.route-tag-yours { color: var(--gold); border-color: var(--gold-dim); }
 
 .node {
   padding: 8px 12px;
@@ -312,6 +339,11 @@ button, input, select {
   color: var(--paper);
   white-space: nowrap;
 }
+.node.small {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+}
 .node.endpoint {
   background: var(--violet);
   color: #1A0B2E;
@@ -319,6 +351,7 @@ button, input, select {
   font-family: var(--font-display);
   font-size: 15px;
 }
+.node.small.endpoint { font-size: 12px; }
 .node.confirmed {
   background: var(--green-opt-dim);
   border-color: var(--green-opt);
@@ -329,6 +362,13 @@ button, input, select {
   border-color: var(--yellow-good);
   color: #FFF6D6;
 }
+.node.ghost-node {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--slate);
+  font-style: italic;
+}
 .node.bridge {
   background: var(--trail);
   color: var(--ink);
@@ -337,7 +377,7 @@ button, input, select {
 
 .connector {
   flex: 0 0 auto;
-  width: 18px;
+  width: 12px;
   height: 2px;
   position: relative;
 }

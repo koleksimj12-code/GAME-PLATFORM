@@ -199,7 +199,8 @@
   const modeBanner = $("modeBanner");
   const guessesLeftEl = $("guessesLeft");
   const optimalLenEl = $("difficultyLabel");
-  const routeTrack = $("routeTrack");
+  const routeOptimalEl = $("routeOptimal");
+  const routeYoursEl = $("routeYours");
   const hintDisplay = $("hintDisplay");
   const feedList = $("feedList");
   const feedCard = $("feedCard");
@@ -351,30 +352,88 @@
     guessesLeftEl.textContent = String(round.guessesUsed);
     optimalLenEl.textContent = String(round.requiredIntermediate);
 
-    routeTrack.innerHTML = "";
+    renderOptimalTrailLine();
+    renderYourTrailLine();
+
+    updateHintDisplay();
+    renderGlobe();
+  }
+
+  // Row 1 — countries CONFIRMED to sit on a shortest path so far, in
+  // discovery order. Undiscovered slots show as a "+N to find" placeholder
+  // rather than the real names, so this never spoils the answer.
+  function renderOptimalTrailLine() {
+    if (!routeOptimalEl) return;
+    routeOptimalEl.innerHTML = "";
+    const tag = document.createElement("span");
+    tag.className = "route-tag route-tag-optimal";
+    tag.textContent = "Shortest";
+    routeOptimalEl.appendChild(tag);
+
+    const chain = [round.start];
+    round.startChain.slice(1).forEach((c) => { if (isOptimal(c)) chain.push(c); });
+    round.floatingOptimal.forEach((c) => chain.push(c));
+    [...round.endChain.slice(1)].reverse().forEach((c) => { if (isOptimal(c)) chain.push(c); });
+    chain.push(round.end);
+
+    const foundCount = chain.length - 2; // exclude the two endpoints
+    const remaining = Math.max(round.requiredIntermediate - foundCount, 0);
+
+    chain.forEach((node, i) => {
+      const el = document.createElement("div");
+      const isEndpoint = node === round.start || node === round.end;
+      el.className = "node small " + (isEndpoint ? "endpoint" : "confirmed");
+      el.textContent = node;
+      routeOptimalEl.appendChild(el);
+
+      if (i === chain.length - 2 && remaining > 0) {
+        // insert the "still to find" placeholder just before the end chip
+        const c1 = document.createElement("div");
+        c1.className = "connector open";
+        routeOptimalEl.appendChild(c1);
+        const ghost = document.createElement("div");
+        ghost.className = "node small ghost-node";
+        ghost.textContent = `+${remaining} to find`;
+        routeOptimalEl.appendChild(ghost);
+      }
+      if (i < chain.length - 1) {
+        const c2 = document.createElement("div");
+        c2.className = "connector" + (i === chain.length - 2 && remaining > 0 ? " open" : "");
+        routeOptimalEl.appendChild(c2);
+      }
+    });
+  }
+
+  // Row 2 — the actual trail chat has built so far, exactly as guessed
+  // (may include valid-but-longer detours, not just optimal picks).
+  function renderYourTrailLine() {
+    if (!routeYoursEl) return;
+    routeYoursEl.innerHTML = "";
+    const tag = document.createElement("span");
+    tag.className = "route-tag route-tag-yours";
+    tag.textContent = "Your trail";
+    routeYoursEl.appendChild(tag);
+
     const fullVisual = [...round.startChain, "…GAP…", ...[...round.endChain].reverse()];
     fullVisual.forEach((node, i) => {
       if (node === "…GAP…") {
         const c = document.createElement("div");
         c.className = "connector open";
-        routeTrack.appendChild(c);
+        routeYoursEl.appendChild(c);
         return;
       }
       const el = document.createElement("div");
       const isEndpoint = node === round.start || node === round.end;
       const optimalNode = !isEndpoint && isOptimal(node);
-      el.className = "node " + (isEndpoint ? "endpoint" : optimalNode ? "confirmed" : "good-node");
+      el.className = "node small " + (isEndpoint ? "endpoint" : optimalNode ? "confirmed" : "good-node");
       el.textContent = node;
-      routeTrack.appendChild(el);
+      routeYoursEl.appendChild(el);
       if (i < fullVisual.length - 1 && fullVisual[i + 1] !== "…GAP…") {
         const c = document.createElement("div");
         c.className = "connector";
-        routeTrack.appendChild(c);
+        routeYoursEl.appendChild(c);
       }
     });
-
-    updateHintDisplay();
-    renderGlobe();
   }
 
   function renderGlobe() {
