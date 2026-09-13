@@ -595,6 +595,9 @@
   // Shared by the manual "Guess" button and the TikTok auto-relay.
   function processGuess(rawGuess, viewerNameRaw, opts) {
     const silent = Boolean(opts && opts.silent);
+    // Fun chat commands work regardless of round state — checked first,
+    // as a side effect only, so they're never gated by "no round active".
+    if (window.PenguinFun) window.PenguinFun.handleChatText(rawGuess);
     if (!round || !round.active) return;
     const viewerName = mode === "offline" ? "" : (viewerNameRaw || "").trim();
 

@@ -253,6 +253,7 @@ function renderFansList() {
 
 // ---------- Chat feed ----------
 socket.on("comment-feed", ({ username, text, correct }) => {
+  if (window.PenguinFun) window.PenguinFun.handleChatText(text);
   const row = document.createElement("div");
   row.className = "comment-row" + (correct ? " correct" : "");
   const isHost = username.startsWith("HOST");
