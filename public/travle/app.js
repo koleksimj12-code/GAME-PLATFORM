@@ -582,14 +582,24 @@
   // this older recenter is skipped, so they never fight each other.
   let focusGeneration = 0;
   function focusThenRecenter(country) {
-    if (!window.Globe || !window.Globe.isReady() || !COUNTRY_COORDS[country]) return;
-    const myGen = ++focusGeneration;
-    window.Globe.focusOnCountry(country, 900);
-    setTimeout(() => {
-      if (myGen !== focusGeneration) return; // superseded by a newer guess
-      if (!round) return;
-      window.Globe.centerOn(round.start, round.end, 900);
-    }, 3000);
+    try {
+      if (!window.Globe) { console.warn("[focus] window.Globe is missing"); return; }
+      if (!window.Globe.isReady()) { console.warn("[focus] Globe reports not ready"); return; }
+      if (!COUNTRY_COORDS[country]) { console.warn("[focus] no coordinates for:", country); return; }
+      const myGen = ++focusGeneration;
+      window.Globe.focusOnCountry(country, 900);
+      setTimeout(() => {
+        try {
+          if (myGen !== focusGeneration) return; // superseded by a newer guess
+          if (!round) return;
+          window.Globe.centerOn(round.start, round.end, 900);
+        } catch (e) {
+          console.error("[focus] recenter-back failed:", e);
+        }
+      }, 3000);
+    } catch (e) {
+      console.error("[focus] focusOnCountry failed:", e);
+    }
   }
 
   // Shared by the manual "Guess" button and the TikTok auto-relay.
